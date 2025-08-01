@@ -76,11 +76,23 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                             return;
                         }
                         
-                        // Пытаемся инжектировать через setTimeout для дожидания iframe
-                        setTimeout(() => {
-                            chrome.scripting.executeScript({
-                                target: { tabId: source.tabId, allFrames: true },
-                                func: (cachedData) => {
+                        // Получаем настройки перед инъекцией
+                        chrome.storage.sync.get({
+                            enabled: true,
+                            position: 'top-right',
+                            format: 'full'
+                        }, (settings) => {
+                            // Если расширение отключено, не инжектируем
+                            if (!settings.enabled) {
+                                console.log('[R6 Market Helper Background] Extension disabled in settings');
+                                return;
+                            }
+                            
+                            // Пытаемся инжектировать через setTimeout для дожидания iframe
+                            setTimeout(() => {
+                                chrome.scripting.executeScript({
+                                    target: { tabId: source.tabId, allFrames: true },
+                                    func: (cachedData, userSettings) => {
                                     console.log('[R6 Market Helper] Script executed in frame:', window.location.href);
                                     console.log('[R6 Market Helper] Frame is iframe?', window.self !== window.top);
                                     console.log('[R6 Market Helper] Frame domain:', window.location.hostname);
@@ -147,10 +159,26 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                             
                                             const priceContainer = document.createElement('div');
                                             priceContainer.className = 'r6-market-helper-prices';
+                                            
+                                            // Определяем позицию на основе настроек
+                                            let positionStyle = '';
+                                            switch (userSettings.position) {
+                                                case 'top-left':
+                                                    positionStyle = 'top: 8px; left: 8px;';
+                                                    break;
+                                                case 'bottom-right':
+                                                    positionStyle = 'bottom: 8px; right: 8px;';
+                                                    break;
+                                                case 'bottom-left':
+                                                    positionStyle = 'bottom: 8px; left: 8px;';
+                                                    break;
+                                                default: // top-right
+                                                    positionStyle = 'top: 8px; right: 8px;';
+                                            }
+                                            
                                             priceContainer.style.cssText = `
                                                 position: absolute;
-                                                top: 8px;
-                                                right: 8px;
+                                                ${positionStyle}
                                                 z-index: 1000;
                                                 background: rgba(0, 0, 0, 0.85);
                                                 padding: 6px 8px;
@@ -163,17 +191,29 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                                             `;
                                             
+                                            // Определяем формат текста на основе настроек
+                                            function formatPrice(type, price) {
+                                                switch (userSettings.format) {
+                                                    case 'short':
+                                                        return type === 'buy' ? `Buy: ${price}` : `Sell: ${price}`;
+                                                    case 'icons':
+                                                        return type === 'buy' ? `🔺 ${price}` : `🔻 ${price}`;
+                                                    default: // full
+                                                        return type === 'buy' ? `Buy now: ${price}` : `Sell now: ${price}`;
+                                                }
+                                            }
+                                            
                                             if (lowestSellPrice !== undefined) {
                                                 const sellDiv = document.createElement('div');
                                                 sellDiv.style.cssText = 'color: #51cf66; margin-bottom: 2px; font-weight: 600; font-size: 10px;';
-                                                sellDiv.innerHTML = `Buy now: ${lowestSellPrice}`;
+                                                sellDiv.innerHTML = formatPrice('buy', lowestSellPrice);
                                                 priceContainer.appendChild(sellDiv);
                                             }
                                             
                                             if (highestBuyPrice !== undefined) {
                                                 const buyDiv = document.createElement('div');
                                                 buyDiv.style.cssText = 'color: #ff6b6b; font-weight: 600; font-size: 10px;';
-                                                buyDiv.innerHTML = `Sell now: ${highestBuyPrice}`;
+                                                buyDiv.innerHTML = formatPrice('sell', highestBuyPrice);
                                                 priceContainer.appendChild(buyDiv);
                                             }
                                             
@@ -226,13 +266,14 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                     });
                                 }
                             },
-                            args: [marketDataCache]
+                            args: [marketDataCache, settings]
                             }).then((results) => {
                                 console.log('[R6 Market Helper Background] Script injection completed:', results);
                             }).catch((error) => {
                                 console.log('[R6 Market Helper Background] Script injection failed:', error);
                             });
-                        }, 1000); // Ждем 1 секунду для загрузки iframe
+                            }, 1000); // Ждем 1 секунду для загрузки iframe  
+                        });
                     } catch (e) {}
                 }
             );

@@ -68,6 +68,22 @@
             color: #95a5a6;
             font-size: 12px;
         }
+        
+        .settings-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 10px 0;
+            width: 100%;
+        }
+        
+        .settings-btn:hover {
+            background: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -95,8 +111,12 @@
         <span class="feature-text">Works on all marketplace pages</span>
     </div>
     
+    <button class="settings-btn" id="settingsBtn">⚙️ Settings</button>
+    
     <div class="footer">
         <div class="version">Version 1.2.0</div>
     </div>
+    
+    <script src="popup.js"></script>
 </body>
 </html>
