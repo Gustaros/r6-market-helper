@@ -69,8 +69,6 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                     console.log('[R6 Market Helper] Script injected in iframe:', window.location.href);
                                     console.log('[R6 Market Helper] Received data:', apiData);
                                     
-                                    // Простой тест - добавляем красный бордер для проверки
-                                    document.body.style.border = '5px solid red';
                                     
                                     // Показываем алерт для тестирования
                                     if (window.location.href.includes('connect.cdn.ubisoft.com')) {
