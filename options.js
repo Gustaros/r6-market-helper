@@ -116,6 +116,71 @@ function updateEnabledStatus() {
     status.style.color = enabled ? '#27ae60' : '#e74c3c';
 }
 
+
+// Load and display analytics stats
+async function loadAnalyticsStats() {
+    try {
+        const result = await chrome.storage.local.get({ analytics_events: [] });
+        const events = result.analytics_events;
+        
+        if (events.length === 0) {
+            document.getElementById('stats-content').innerHTML = '<div>No usage data available</div>';
+            return;
+        }
+        
+        const stats = {
+            totalEvents: events.length,
+            sessions: new Set(events.map(e => e.sessionId)).size,
+            extensionUsage: {},
+            errorCount: 0,
+            firstUsed: new Date(Math.min(...events.map(e => e.timestamp))),
+            lastUsed: new Date(Math.max(...events.map(e => e.timestamp)))
+        };
+        
+        // Count event types
+        events.forEach(event => {
+            stats.extensionUsage[event.event] = (stats.extensionUsage[event.event] || 0) + 1;
+            if (event.event.includes('error') || event.event.includes('failed')) {
+                stats.errorCount++;
+            }
+        });
+        
+        // Display stats
+        const statsHtml = `
+            <div style="margin: 5px 0;"><strong>Total Events:</strong> ${stats.totalEvents}</div>
+            <div style="margin: 5px 0;"><strong>Sessions:</strong> ${stats.sessions}</div>
+            <div style="margin: 5px 0;"><strong>Errors:</strong> ${stats.errorCount}</div>
+            <div style="margin: 5px 0;"><strong>First Used:</strong> ${stats.firstUsed.toLocaleDateString()}</div>
+            <div style="margin: 5px 0;"><strong>Last Used:</strong> ${stats.lastUsed.toLocaleDateString()}</div>
+            <div style="margin: 10px 0;"><strong>Event Types:</strong></div>
+            ${Object.entries(stats.extensionUsage)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([event, count]) => `<div style="margin: 2px 0; padding-left: 10px;">• ${event}: ${count}</div>`)
+                .join('')}
+        `;
+        
+        document.getElementById('stats-content').innerHTML = statsHtml;
+    } catch (error) {
+        console.error('Error loading analytics stats:', error);
+        document.getElementById('stats-content').innerHTML = '<div style="color: #e74c3c;">Error loading stats</div>';
+    }
+}
+
+// Clear analytics data
+async function clearAnalyticsData() {
+    try {
+        await chrome.storage.local.set({ analytics_events: [] });
+        showStatus('Analytics data cleared', 'success');
+        
+        // Hide stats if shown
+        document.getElementById('analytics-stats').style.display = 'none';
+    } catch (error) {
+        console.error('Error clearing analytics data:', error);
+        showStatus('Error clearing analytics data', 'error');
+    }
+}
+
 // Initialize the options page
 async function init() {
     try {
@@ -167,6 +232,29 @@ async function init() {
             } catch (error) {
                 console.error('Error handling format change:', error);
                 showStatus('Error updating format', 'error');
+            }
+        });
+        
+        
+        // Analytics buttons
+        document.getElementById('view-analytics').addEventListener('click', async () => {
+            try {
+                const statsDiv = document.getElementById('analytics-stats');
+                if (statsDiv.style.display === 'none') {
+                    await loadAnalyticsStats();
+                    statsDiv.style.display = 'block';
+                } else {
+                    statsDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error viewing analytics:', error);
+                showStatus('Error loading analytics', 'error');
+            }
+        });
+        
+        document.getElementById('clear-analytics').addEventListener('click', async () => {
+            if (confirm('Are you sure you want to clear all analytics data? This cannot be undone.')) {
+                await clearAnalyticsData();
             }
         });
         

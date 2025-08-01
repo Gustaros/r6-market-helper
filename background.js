@@ -2,6 +2,45 @@ const attachedTabs = {};
 const version = "1.3";
 const marketDataCache = {}; // Глобальный кэш цен
 
+// Инициализация аналитики
+let analytics = null;
+async function initAnalytics() {
+    if (!analytics) {
+        // Загружаем скрипт аналитики
+        try {
+            analytics = {
+                track: (event, data) => {
+                    // Простая локальная аналитика
+                    chrome.storage.local.get({ analytics_events: [] }, (result) => {
+                        const events = result.analytics_events;
+                        events.push({
+                            event,
+                            data,
+                            timestamp: Date.now(),
+                            version: '1.2.0'
+                        });
+                        
+                        // Ограничиваем размер
+                        if (events.length > 1000) {
+                            events.splice(0, events.length - 1000);
+                        }
+                        
+                        chrome.storage.local.set({ analytics_events: events });
+                        console.log('[R6 Analytics Background]', event, data);
+                    });
+                }
+            };
+            
+            // Всегда включена локальная аналитика
+            analytics.track('extension_service_worker_started');
+        } catch (error) {
+            console.error('Failed to initialize analytics:', error);
+        }
+    }
+}
+
+initAnalytics();
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'attachDebugger') {
         const tabId = sender.tab.id;
@@ -22,8 +61,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.debugger.sendCommand({ tabId: tabId }, "Network.enable", {}, (result) => {
                 if (chrome.runtime.lastError) {
                     console.error('[R6 Market Helper Background] Failed to enable network:', chrome.runtime.lastError.message);
+                    analytics?.track('debugger_network_enable_failed', { error: chrome.runtime.lastError.message });
                 } else {
                     console.log('[R6 Market Helper Background] Network debugging enabled for tab:', tabId);
+                    analytics?.track('debugger_network_enabled', { tabId });
+                    
                     // Уведомляем об успешной инициализации
                     chrome.tabs.sendMessage(tabId, { 
                         type: "SHOW_NOTIFICATION", 
@@ -91,14 +133,24 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                                 (path5?.data?.game?.viewer?.meta?.marketableItems?.nodes) ||
                                                 (path6?.data?.game?.marketableItems?.nodes);
                             
+                            let newItemsCount = 0;
                             marketableItems.forEach(itemNode => {
                                 const assetUrl = itemNode?.item?.assetUrl;
                                 if (assetUrl) {
-                                    marketDataCache[assetUrl.split('?')[0]] = itemNode.marketData;
+                                    const key = assetUrl.split('?')[0];
+                                    if (!marketDataCache[key]) {
+                                        newItemsCount++;
+                                    }
+                                    marketDataCache[key] = itemNode.marketData;
                                 }
                             });
                             
                             console.log('[R6 Market Helper Background] Cached', Object.keys(marketDataCache).length, 'items');
+                            analytics?.track('marketplace_data_received', { 
+                                totalCached: Object.keys(marketDataCache).length,
+                                newItems: newItemsCount,
+                                dataPath: path1 ? 'path1' : path2 ? 'path2' : path3 ? 'path3' : path4 ? 'path4' : path5 ? 'path5' : 'path6'
+                            });
                         }
                         
                         // Инжектируем скрипт только если есть данные (новые или кэшированные)
@@ -326,6 +378,11 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                             args: [marketDataCache, settings]
                             }).then((results) => {
                                 console.log('[R6 Market Helper Background] Script injection completed:', results);
+                                analytics?.track('script_injection_success', { 
+                                    cachedItems: Object.keys(marketDataCache).length,
+                                    settings: { position: settings.position, format: settings.format }
+                                });
+                                
                                 // Уведомляем об успешном обновлении цен если есть данные
                                 if (Object.keys(marketDataCache).length > 0) {
                                     chrome.tabs.sendMessage(source.tabId, { 
@@ -337,6 +394,10 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                 }
                             }).catch((error) => {
                                 console.error('[R6 Market Helper Background] Script injection failed:', error);
+                                analytics?.track('script_injection_failed', { 
+                                    error: error.message?.substring(0, 100)
+                                });
+                                
                                 chrome.tabs.sendMessage(source.tabId, { 
                                     type: "SHOW_NOTIFICATION", 
                                     message: "Failed to inject price overlays. Try refreshing the page.", 

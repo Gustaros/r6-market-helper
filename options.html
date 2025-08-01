@@ -229,6 +229,19 @@
             </div>
         </div>
         
+        <div class="setting-group">
+            <div class="setting-title">Usage Statistics</div>
+            <div class="setting-description">View your local usage statistics and troubleshoot issues (data never leaves your browser)</div>
+            <div style="margin-top: 10px;">
+                <button id="view-analytics" style="background: #95a5a6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 10px;">View Stats</button>
+                <button id="clear-analytics" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Clear Data</button>
+            </div>
+            <div id="analytics-stats" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px; display: none;">
+                <div><strong>Usage Statistics:</strong></div>
+                <div id="stats-content"></div>
+            </div>
+        </div>
+        
         <div id="status" class="status" style="display: none;"></div>
         
         <div class="version">Version 1.2.0</div>
