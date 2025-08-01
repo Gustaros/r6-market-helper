@@ -194,15 +194,15 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                             
                                             if (lowestSellPrice !== undefined) {
                                                 const sellDiv = document.createElement('div');
-                                                sellDiv.style.cssText = 'color: #ff6b6b; margin-bottom: 2px; font-weight: 600;';
-                                                sellDiv.innerHTML = `🔻 ${lowestSellPrice}`;
+                                                sellDiv.style.cssText = 'color: #51cf66; margin-bottom: 2px; font-weight: 600; font-size: 10px;';
+                                                sellDiv.innerHTML = `Buy now: ${lowestSellPrice}`;
                                                 priceContainer.appendChild(sellDiv);
                                             }
                                             
                                             if (highestBuyPrice !== undefined) {
                                                 const buyDiv = document.createElement('div');
-                                                buyDiv.style.cssText = 'color: #51cf66; font-weight: 600;';
-                                                buyDiv.innerHTML = `🔺 ${highestBuyPrice}`;
+                                                buyDiv.style.cssText = 'color: #ff6b6b; font-weight: 600; font-size: 10px;';
+                                                buyDiv.innerHTML = `Sell now: ${highestBuyPrice}`;
                                                 priceContainer.appendChild(buyDiv);
                                             }
                                             
