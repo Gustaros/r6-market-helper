@@ -41,6 +41,108 @@ async function initAnalytics() {
 
 initAnalytics();
 
+// Function to record detailed marketplace data
+async function recordMarketplaceData(marketableItems) {
+    try {
+        const timestamp = new Date().toISOString();
+        const records = [];
+        
+        marketableItems.forEach(itemNode => {
+            const item = itemNode.item;
+            const marketData = itemNode.marketData;
+            const viewer = itemNode.viewer;
+            
+            // Extract weapon/character from tags
+            const weaponCharacter = extractWeaponCharacter(item.tags || []);
+            const season = extractSeason(item.tags || []);
+            const rarity = extractRarity(item.tags || []);
+            
+            const record = {
+                timestamp: timestamp,
+                itemId: item.itemId,
+                name: item.name,
+                type: item.type,
+                weaponCharacter: weaponCharacter,
+                season: season,
+                rarity: rarity,
+                
+                // Market data
+                sellLowest: marketData.sellStats?.[0]?.lowestPrice,
+                sellHighest: marketData.sellStats?.[0]?.highestPrice,
+                sellOrders: marketData.sellStats?.[0]?.activeCount,
+                
+                buyLowest: marketData.buyStats?.[0]?.lowestPrice,
+                buyHighest: marketData.buyStats?.[0]?.highestPrice,
+                buyOrders: marketData.buyStats?.[0]?.activeCount,
+                
+                lastSoldPrice: marketData.lastSoldAt?.[0]?.price,
+                lastSoldDate: marketData.lastSoldAt?.[0]?.performedAt,
+                
+                // User data
+                userOwned: viewer?.meta?.isOwned || false,
+                userQuantity: viewer?.meta?.quantity || 0,
+                
+                // Active trade
+                activeTrade: viewer?.meta?.activeTrade ? true : false,
+                tradeCategory: viewer?.meta?.activeTrade?.category,
+                tradePrice: viewer?.meta?.activeTrade?.paymentOptions?.[0]?.price,
+                tradeCreated: viewer?.meta?.activeTrade?.createdAt,
+                tradeExpires: viewer?.meta?.activeTrade?.expiresAt,
+                
+                // Additional data
+                assetUrl: item.assetUrl,
+                tags: item.tags || []
+            };
+            
+            records.push(record);
+        });
+        
+        // Save to local storage
+        chrome.storage.local.get({ marketplace_records: [] }, (result) => {
+            const existingRecords = result.marketplace_records;
+            const allRecords = [...existingRecords, ...records];
+            
+            // Limit to last 10000 records to prevent storage overflow
+            if (allRecords.length > 10000) {
+                allRecords.splice(0, allRecords.length - 10000);
+            }
+            
+            chrome.storage.local.set({ marketplace_records: allRecords }, () => {
+                console.log(`[R6 Market Helper] Recorded ${records.length} marketplace items`);
+            });
+        });
+        
+    } catch (error) {
+        console.error('[R6 Market Helper] Error recording marketplace data:', error);
+    }
+}
+
+// Helper functions to extract data from tags
+function extractWeaponCharacter(tags) {
+    // Look for weapon names or character names
+    const weaponTags = tags.filter(tag => 
+        tag.includes('W_') || 
+        tag.includes('Character.') ||
+        tag.match(/^[A-Z0-9-]+$/) && tag.length < 15
+    );
+    
+    if (weaponTags.length > 0) {
+        return weaponTags[0].replace('W_', '').replace('Character.', '').replace('Legacy.', '');
+    }
+    
+    return 'Unknown';
+}
+
+function extractSeason(tags) {
+    const seasonTag = tags.find(tag => tag.match(/^Y\d+S\d+$/));
+    return seasonTag || 'Unknown';
+}
+
+function extractRarity(tags) {
+    const rarityTag = tags.find(tag => tag.startsWith('rarity_'));
+    return rarityTag ? rarityTag.replace('rarity_', '') : 'Unknown';
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'attachDebugger') {
         const tabId = sender.tab.id;
@@ -150,6 +252,13 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                 totalCached: Object.keys(marketDataCache).length,
                                 newItems: newItemsCount,
                                 dataPath: path1 ? 'path1' : path2 ? 'path2' : path3 ? 'path3' : path4 ? 'path4' : path5 ? 'path5' : 'path6'
+                            });
+                            
+                            // Записываем подробные данные для экспорта
+                            chrome.storage.sync.get({ dataExport: true }, (settings) => {
+                                if (settings.dataExport) {
+                                    recordMarketplaceData(marketableItems);
+                                }
                             });
                         }
                         

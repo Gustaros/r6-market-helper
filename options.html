@@ -295,6 +295,29 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        
+        #export-stats {
+            margin-top: 20px !important;
+            padding: 15px !important;
+            background: linear-gradient(135deg, #1a1a1a, #0f0f0f) !important;
+            border-radius: 3px !important;
+            font-size: 12px !important;
+            border: 1px solid #3a3a3a !important;
+            color: #e0e0e0 !important;
+        }
+        
+        #export-stats strong {
+            color: #f39c12;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 11px;
+        }
+        
+        #export-stats-content div {
+            margin: 8px 0 !important;
+            color: #b8b8b8 !important;
+            padding-left: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -351,11 +374,39 @@
         </div>
         
         <div class="setting-group">
+            <div class="setting-title">Data Export</div>
+            <div class="setting-description">Record and export detailed marketplace data for analysis (all data stored locally)</div>
+            <div class="setting-control">
+                <label class="toggle">
+                    <input type="checkbox" id="dataExport" checked>
+                    <span class="slider"></span>
+                </label>
+                <span id="dataExport-status">Enabled</span>
+            </div>
+            <div style="margin-top: 15px;">
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #8a8a8a; font-size: 13px; margin-right: 10px;">Export Format:</label>
+                    <select id="exportFormat" style="margin-right: 15px;">
+                        <option value="csv">CSV (Excel)</option>
+                        <option value="json">JSON</option>
+                        <option value="txt">TXT</option>
+                    </select>
+                </div>
+                <button id="export-data">Export Data</button>
+                <button id="clear-export-data">Clear Records</button>
+                <button id="view-export-stats">View Records</button>
+            </div>
+            <div id="export-stats" style="margin-top: 15px; display: none;">
+                <div id="export-stats-content"></div>
+            </div>
+        </div>
+        
+        <div class="setting-group">
             <div class="setting-title">Usage Statistics</div>
             <div class="setting-description">View your local usage statistics and troubleshoot issues (data never leaves your browser)</div>
             <div style="margin-top: 10px;">
-                <button id="view-analytics" style="background: #95a5a6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 10px;">View Stats</button>
-                <button id="clear-analytics" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Clear Data</button>
+                <button id="view-analytics">View Stats</button>
+                <button id="clear-analytics">Clear Data</button>
             </div>
             <div id="analytics-stats" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px; display: none;">
                 <div><strong>Usage Statistics:</strong></div>
