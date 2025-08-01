@@ -29,14 +29,23 @@ async function saveSettings(settings) {
 
 // Show status message
 function showStatus(message, type) {
-    const status = document.getElementById('status');
-    status.textContent = message;
-    status.className = `status ${type}`;
-    status.style.display = 'block';
-    
-    setTimeout(() => {
-        status.style.display = 'none';
-    }, 3000);
+    try {
+        const status = document.getElementById('status');
+        if (!status) {
+            console.error('Status element not found');
+            return;
+        }
+        
+        status.textContent = message;
+        status.className = `status ${type}`;
+        status.style.display = 'block';
+        
+        setTimeout(() => {
+            status.style.display = 'none';
+        }, 3000);
+    } catch (error) {
+        console.error('Error showing status:', error);
+    }
 }
 
 // Update position preview
@@ -109,33 +118,63 @@ function updateEnabledStatus() {
 
 // Initialize the options page
 async function init() {
-    const settings = await loadSettings();
-    
-    // Apply loaded settings to UI
-    document.getElementById('enabled').checked = settings.enabled;
-    document.getElementById('position').value = settings.position;
-    document.getElementById('format').value = settings.format;
-    
-    // Update UI
-    updateEnabledStatus();
-    updatePreview();
-    updateFormatPreview();
-    
-    // Add event listeners
-    document.getElementById('enabled').addEventListener('change', () => {
+    try {
+        const settings = await loadSettings();
+        
+        // Apply loaded settings to UI
+        const enabledEl = document.getElementById('enabled');
+        const positionEl = document.getElementById('position');
+        const formatEl = document.getElementById('format');
+        
+        if (!enabledEl || !positionEl || !formatEl) {
+            throw new Error('Required DOM elements not found');
+        }
+        
+        enabledEl.checked = settings.enabled;
+        positionEl.value = settings.position;
+        formatEl.value = settings.format;
+        
+        // Update UI
         updateEnabledStatus();
-        saveCurrentSettings();
-    });
-    
-    document.getElementById('position').addEventListener('change', () => {
         updatePreview();
-        saveCurrentSettings();
-    });
-    
-    document.getElementById('format').addEventListener('change', () => {
         updateFormatPreview();
-        saveCurrentSettings();
-    });
+        
+        // Add event listeners
+        enabledEl.addEventListener('change', () => {
+            try {
+                updateEnabledStatus();
+                saveCurrentSettings();
+            } catch (error) {
+                console.error('Error handling enabled change:', error);
+                showStatus('Error updating setting', 'error');
+            }
+        });
+        
+        positionEl.addEventListener('change', () => {
+            try {
+                updatePreview();
+                saveCurrentSettings();
+            } catch (error) {
+                console.error('Error handling position change:', error);
+                showStatus('Error updating position', 'error');
+            }
+        });
+        
+        formatEl.addEventListener('change', () => {
+            try {
+                updateFormatPreview();
+                saveCurrentSettings();
+            } catch (error) {
+                console.error('Error handling format change:', error);
+                showStatus('Error updating format', 'error');
+            }
+        });
+        
+        showStatus('Settings loaded successfully!', 'success');
+    } catch (error) {
+        console.error('Error initializing options page:', error);
+        showStatus('Error loading settings page', 'error');
+    }
 }
 
 // Save current settings from UI

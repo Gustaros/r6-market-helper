@@ -8,9 +8,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (attachedTabs[tabId]) return;
 
         chrome.debugger.attach({ tabId: tabId }, version, () => {
-            if (chrome.runtime.lastError) return;
+            if (chrome.runtime.lastError) {
+                console.error('[R6 Market Helper Background] Failed to attach debugger:', chrome.runtime.lastError.message);
+                // Отправляем ошибку в content script для отображения уведомления
+                chrome.tabs.sendMessage(tabId, { 
+                    type: "SHOW_NOTIFICATION", 
+                    message: "Failed to initialize R6 Market Helper. Please refresh the page.", 
+                    messageType: "error" 
+                });
+                return;
+            }
             attachedTabs[tabId] = true;
-            chrome.debugger.sendCommand({ tabId: tabId }, "Network.enable");
+            chrome.debugger.sendCommand({ tabId: tabId }, "Network.enable", {}, (result) => {
+                if (chrome.runtime.lastError) {
+                    console.error('[R6 Market Helper Background] Failed to enable network:', chrome.runtime.lastError.message);
+                } else {
+                    console.log('[R6 Market Helper Background] Network debugging enabled for tab:', tabId);
+                    // Уведомляем об успешной инициализации
+                    chrome.tabs.sendMessage(tabId, { 
+                        type: "SHOW_NOTIFICATION", 
+                        message: "R6 Market Helper initialized successfully!", 
+                        messageType: "success",
+                        duration: 3000
+                    });
+                }
+            });
         });
     }
 });
@@ -23,7 +45,16 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                 "Network.getResponseBody",
                 { requestId: params.requestId },
                 (response) => {
-                    if (chrome.runtime.lastError || !response || !response.body) return;
+                    if (chrome.runtime.lastError) {
+                        console.error('[R6 Market Helper Background] Failed to get response body:', chrome.runtime.lastError.message);
+                        return;
+                    }
+                    
+                    if (!response || !response.body) {
+                        console.warn('[R6 Market Helper Background] Empty response received');
+                        return;
+                    }
+                    
                     try {
                         const data = JSON.parse(response.body);
                         chrome.tabs.sendMessage(source.tabId, { type: "GRAPHQL_DATA", data: data });
@@ -82,6 +113,12 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                             position: 'top-right',
                             format: 'full'
                         }, (settings) => {
+                            if (chrome.runtime.lastError) {
+                                console.error('[R6 Market Helper Background] Failed to load settings:', chrome.runtime.lastError.message);
+                                // Используем настройки по умолчанию
+                                settings = { enabled: true, position: 'top-right', format: 'full' };
+                            }
+                            
                             // Если расширение отключено, не инжектируем
                             if (!settings.enabled) {
                                 console.log('[R6 Market Helper Background] Extension disabled in settings');
@@ -108,10 +145,11 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                     
                                     // Функция обновления карточек
                                     function updateCards() {
-                                        if (!document.body) {
-                                            setTimeout(updateCards, 100);
-                                            return;
-                                        }
+                                        try {
+                                            if (!document.body) {
+                                                setTimeout(updateCards, 100);
+                                                return;
+                                            }
                                         
                                         const selectors = [
                                             '[data-e2e="secondary-store-grid-item"]',
@@ -226,8 +264,13 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                             injectedCount++;
                                         });
                                         
-                                        if (injectedCount > 0) {
-                                            console.log('[R6 Market Helper] Successfully injected prices for', injectedCount, 'cards');
+                                            if (injectedCount > 0) {
+                                                console.log('[R6 Market Helper] Successfully injected prices for', injectedCount, 'cards');
+                                            } else {
+                                                console.log('[R6 Market Helper] No cards found or no matching market data');
+                                            }
+                                        } catch (error) {
+                                            console.error('[R6 Market Helper] Error in updateCards:', error);
                                         }
                                     }
                                     
@@ -235,46 +278,81 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                     updateCards();
                                     
                                     // Наблюдатель за изменениями DOM
-                                    const observer = new MutationObserver((mutations) => {
-                                        let shouldUpdate = false;
-                                        mutations.forEach(mutation => {
-                                            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                                                for (const node of mutation.addedNodes) {
-                                                    if (node.nodeType === Node.ELEMENT_NODE) {
-                                                        if (node.matches && (
-                                                            node.matches('[data-e2e="secondary-store-grid-item"]') ||
-                                                            node.matches('[role="button"][class*="marketplace"]') ||
-                                                            node.querySelector('[data-e2e="secondary-store-grid-item"]') ||
-                                                            node.querySelector('[role="button"][class*="marketplace"]')
-                                                        )) {
-                                                            shouldUpdate = true;
-                                                            break;
+                                    try {
+                                        const observer = new MutationObserver((mutations) => {
+                                            try {
+                                                let shouldUpdate = false;
+                                                mutations.forEach(mutation => {
+                                                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                                                        for (const node of mutation.addedNodes) {
+                                                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                                                try {
+                                                                    if (node.matches && (
+                                                                        node.matches('[data-e2e="secondary-store-grid-item"]') ||
+                                                                        node.matches('[role="button"][class*="marketplace"]') ||
+                                                                        node.querySelector('[data-e2e="secondary-store-grid-item"]') ||
+                                                                        node.querySelector('[role="button"][class*="marketplace"]')
+                                                                    )) {
+                                                                        shouldUpdate = true;
+                                                                        break;
+                                                                    }
+                                                                } catch (e) {
+                                                                    // Игнорируем ошибки селекторов
+                                                                }
+                                                            }
                                                         }
                                                     }
+                                                });
+                                                
+                                                if (shouldUpdate) {
+                                                    setTimeout(updateCards, 500);
                                                 }
+                                            } catch (error) {
+                                                console.error('[R6 Market Helper] Error in MutationObserver:', error);
                                             }
                                         });
                                         
-                                        if (shouldUpdate) {
-                                            setTimeout(updateCards, 500);
-                                        }
-                                    });
-                                    
-                                    observer.observe(document.body, {
-                                        childList: true,
-                                        subtree: true
-                                    });
+                                        observer.observe(document.body, {
+                                            childList: true,
+                                            subtree: true
+                                        });
+                                        
+                                        console.log('[R6 Market Helper] DOM observer initialized');
+                                    } catch (error) {
+                                        console.error('[R6 Market Helper] Failed to initialize DOM observer:', error);
+                                    }
                                 }
                             },
                             args: [marketDataCache, settings]
                             }).then((results) => {
                                 console.log('[R6 Market Helper Background] Script injection completed:', results);
+                                // Уведомляем об успешном обновлении цен если есть данные
+                                if (Object.keys(marketDataCache).length > 0) {
+                                    chrome.tabs.sendMessage(source.tabId, { 
+                                        type: "SHOW_NOTIFICATION", 
+                                        message: `Price data updated! (${Object.keys(marketDataCache).length} items)`, 
+                                        messageType: "info",
+                                        duration: 2000
+                                    });
+                                }
                             }).catch((error) => {
-                                console.log('[R6 Market Helper Background] Script injection failed:', error);
+                                console.error('[R6 Market Helper Background] Script injection failed:', error);
+                                chrome.tabs.sendMessage(source.tabId, { 
+                                    type: "SHOW_NOTIFICATION", 
+                                    message: "Failed to inject price overlays. Try refreshing the page.", 
+                                    messageType: "error"
+                                });
                             });
                             }, 1000); // Ждем 1 секунду для загрузки iframe  
                         });
-                    } catch (e) {}
+                    } catch (e) {
+                        console.error('[R6 Market Helper Background] Error parsing GraphQL response:', e);
+                        chrome.tabs.sendMessage(source.tabId, { 
+                            type: "SHOW_NOTIFICATION", 
+                            message: "Error processing marketplace data", 
+                            messageType: "warning"
+                        });
+                    }
                 }
             );
         }
