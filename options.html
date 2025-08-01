@@ -5,70 +5,109 @@
     <title>R6 Market Helper - Settings</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 600px;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            max-width: 700px;
             margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
+            padding: 0;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #2d2d2d 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
         }
         
         .container {
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+            border-radius: 0;
+            padding: 40px;
+            box-shadow: none;
+            border: 1px solid #3a3a3a;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f39c12, #e67e22, #d35400);
         }
         
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #3498db;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid #3a3a3a;
+            position: relative;
         }
         
         .header h1 {
-            color: #2c3e50;
+            color: #f39c12;
             margin: 0;
             font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(243, 156, 18, 0.3);
         }
         
         .header p {
-            color: #7f8c8d;
-            margin: 5px 0 0 0;
+            color: #8a8a8a;
+            margin: 8px 0 0 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
         }
         
         .setting-group {
-            margin: 25px 0;
-            padding: 20px;
-            border: 1px solid #ecf0f1;
-            border-radius: 6px;
-            background: #fafafa;
+            margin: 30px 0;
+            padding: 25px;
+            border: 1px solid #3a3a3a;
+            border-radius: 3px;
+            background: linear-gradient(135deg, #232323 0%, #2a2a2a 100%);
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .setting-group::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #f39c12, #e67e22);
         }
         
         .setting-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ecf0f1;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .setting-description {
-            color: #7f8c8d;
-            font-size: 14px;
-            margin-bottom: 15px;
+            color: #8a8a8a;
+            font-size: 13px;
+            margin-bottom: 18px;
+            line-height: 1.4;
         }
         
         .setting-control {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         
         .toggle {
             position: relative;
             display: inline-block;
-            width: 50px;
-            height: 24px;
+            width: 52px;
+            height: 26px;
         }
         
         .toggle input {
@@ -84,95 +123,177 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            transition: .3s;
+            border-radius: 26px;
+            border: 1px solid #4a5f7a;
         }
         
         .slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 20px;
+            width: 20px;
             left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
+            bottom: 2px;
+            background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+            transition: .3s;
             border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         input:checked + .slider {
-            background-color: #3498db;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            border-color: #d68910;
         }
         
         input:checked + .slider:before {
             transform: translateX(26px);
+            background: linear-gradient(135deg, #ffffff, #ecf0f1);
         }
         
         select {
-            padding: 8px 12px;
-            border: 1px solid #bdc3c7;
-            border-radius: 4px;
-            font-size: 14px;
-            background: white;
+            padding: 10px 14px;
+            border: 1px solid #4a5f7a;
+            border-radius: 3px;
+            font-size: 13px;
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: #ecf0f1;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        select option {
+            background: #2c3e50;
+            color: #ecf0f1;
         }
         
         .status {
-            margin-top: 20px;
-            padding: 10px 15px;
-            border-radius: 4px;
+            margin-top: 25px;
+            padding: 12px 18px;
+            border-radius: 3px;
             text-align: center;
-            font-weight: 500;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 12px;
         }
         
         .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: linear-gradient(135def, #27ae60, #2ecc71);
+            color: #ffffff;
+            border: 1px solid #1e8449;
+            box-shadow: 0 2px 8px rgba(46, 204, 113, 0.2);
         }
         
         .preview {
-            margin-top: 15px;
-            padding: 15px;
-            background: #2c3e50;
-            border-radius: 6px;
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a1a, #0f0f0f);
+            border-radius: 3px;
             position: relative;
-            min-height: 80px;
+            min-height: 100px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid #3a3a3a;
         }
         
         .preview-card {
-            background: #34495e;
-            border-radius: 4px;
-            padding: 10px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border-radius: 3px;
+            padding: 15px;
             position: relative;
-            width: 150px;
-            height: 60px;
+            width: 180px;
+            height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 12px;
+            color: #ecf0f1;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid #4a5f7a;
         }
         
         .preview-price {
             position: absolute;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 6px 8px;
-            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 8px 10px;
+            border-radius: 3px;
             font-size: 10px;
             color: white;
             backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            font-weight: 600;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: #ecf0f1;
+            border: 1px solid #4a5f7a;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #3d566e, #34495e);
+            border-color: #5a6f8a;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:last-child {
+            margin-right: 0;
         }
         
         .version {
             text-align: center;
-            margin-top: 30px;
-            color: #95a5a6;
-            font-size: 12px;
+            margin-top: 40px;
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        
+        #analytics-stats {
+            margin-top: 20px !important;
+            padding: 15px !important;
+            background: linear-gradient(135deg, #1a1a1a, #0f0f0f) !important;
+            border-radius: 3px !important;
+            font-size: 12px !important;
+            border: 1px solid #3a3a3a !important;
+            color: #e0e0e0 !important;
+        }
+        
+        #analytics-stats strong {
+            color: #f39c12;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 11px;
+        }
+        
+        #stats-content div {
+            margin: 8px 0 !important;
+            color: #b8b8b8 !important;
+            padding-left: 0 !important;
+        }
+        
+        #stats-content div:first-child {
+            color: #f39c12 !important;
+            font-weight: 700 !important;
+            margin-bottom: 12px !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
