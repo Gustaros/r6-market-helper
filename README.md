@@ -11,7 +11,7 @@ The extension intercepts GraphQL requests from the Ubisoft marketplace and displ
 - **"Sell now"**: Highest available buy order (you can sell at this price)
 - **"Star"**: Add item to favorites (you can find it in extension popup)
 
-![](img\image.png)
+![](https://github.com/Gustaros/r6-market-helper/blob/main/img/image.png)
 
 ## Installation
 
