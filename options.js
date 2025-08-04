@@ -141,7 +141,7 @@ async function exportMarketplaceData() {
         let content = '';
         let filename = '';
         
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-') ;
         
         switch (format) {
             case 'csv':
@@ -191,7 +191,7 @@ function convertToCSV(records) {
         const row = [
             record.timestamp,
             record.itemId || '',
-            `"${(record.name || '').replace(/"/g, '""')}"`,
+            `"${(record.name || '').replace(/"/g, '""')}"`, 
             record.type || '',
             record.weaponCharacter || '',
             record.season || '',
@@ -204,7 +204,7 @@ function convertToCSV(records) {
             record.buyOrders || '',
             record.lastSoldPrice || '',
             record.lastSoldDate || '',
-            `"${record.assetUrl || ''}"`,
+            `"${record.assetUrl || ''}"`, 
             record.userOwned || '',
             record.userQuantity || '',
             record.activeTrade || '',
@@ -380,9 +380,103 @@ async function clearAnalyticsData() {
     }
 }
 
+// --- Favorites Functions ---
+async function loadFavorites() {
+    const grid = document.getElementById('favorites-grid');
+    grid.innerHTML = '<p>Loading favorites...</p>';
+
+    try {
+        const { favorites = [] } = await chrome.storage.local.get('favorites');
+        if (favorites.length === 0) {
+            grid.innerHTML = '<p>No favorites yet. Add some from the marketplace!</p>';
+            return;
+        }
+
+        chrome.runtime.sendMessage({ type: 'GET_ITEM_DETAILS', itemIds: favorites }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error getting item details:', chrome.runtime.lastError);
+                grid.innerHTML = '<p style="color: #e74c3c;">Error loading favorite item details.</p>';
+                return;
+            }
+
+            const itemDetails = response.details;
+            if (!itemDetails || itemDetails.length === 0) {
+                grid.innerHTML = '<p>Could not find details for favorite items. The cache might be empty.</p>';
+                return;
+            }
+
+            grid.innerHTML = ''; // Clear loading message
+            itemDetails.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'favorite-item';
+                itemEl.innerHTML = `
+                    <img src="${item.assetUrl}" alt="${item.name}">
+                    <div class="favorite-item-name">${item.name}</div>
+                    <button class="remove-favorite-btn" data-item-id="${item.itemId}">Remove</button>
+                `;
+                grid.appendChild(itemEl);
+            });
+
+            // Add event listeners to new buttons
+            grid.querySelectorAll('.remove-favorite-btn').forEach(button => {
+                button.addEventListener('click', handleRemoveFavorite);
+            });
+        });
+    } catch (error) {
+        console.error('Error loading favorites:', error);
+        grid.innerHTML = '<p style="color: #e74c3c;">Failed to load favorites.</p>';
+    }
+}
+
+async function handleRemoveFavorite(event) {
+    const itemId = event.target.dataset.itemId;
+    if (!itemId) return;
+
+    try {
+        const { favorites = [] } = await chrome.storage.local.get('favorites');
+        const newFavorites = favorites.filter(id => id !== itemId);
+        await chrome.storage.local.set({ favorites: newFavorites });
+        showStatus('Favorite removed!', 'success');
+        loadFavorites(); // Refresh the list
+    } catch (error) {
+        console.error('Error removing favorite:', error);
+        showStatus('Error removing favorite', 'error');
+    }
+}
+
+
+// --- Tab Navigation ---
+function setupTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+
+            // Load content for specific tabs
+            if (tabName === 'favorites') {
+                loadFavorites();
+            }
+        });
+    });
+}
+
+
 // Initialize the options page
 async function init() {
     try {
+        setupTabs(); // Set up tab navigation first
+
         const settings = await loadSettings();
         
         // Apply loaded settings to UI
@@ -526,3 +620,11 @@ async function saveCurrentSettings() {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
+
+// Version display
+try {
+    const version = chrome.runtime.getManifest().version;
+    document.querySelector('.version').textContent = `Version ${version}`;
+} catch (error) {
+    console.error('Error getting manifest version:', error);
+}

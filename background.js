@@ -1,6 +1,7 @@
 const attachedTabs = {};
 const version = "1.3";
 const marketDataCache = {}; // Глобальный кэш цен
+const itemDetailsCache = {}; // Кэш для полной информации о предметах
 
 // Инициализация аналитики
 let analytics = null;
@@ -144,6 +145,13 @@ function extractRarity(tags) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'GET_ITEM_DETAILS') {
+        const itemIds = request.itemIds || [];
+        const details = itemIds.map(id => itemDetailsCache[id]).filter(Boolean);
+        sendResponse({ details });
+        return true; // Keep the message channel open for async response
+    }
+
     if (request.type === 'attachDebugger') {
         const tabId = sender.tab.id;
         if (attachedTabs[tabId]) return;
@@ -237,17 +245,23 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                             
                             let newItemsCount = 0;
                             marketableItems.forEach(itemNode => {
-                                const assetUrl = itemNode?.item?.assetUrl;
-                                if (assetUrl) {
-                                    const key = assetUrl.split('?')[0];
+                                const item = itemNode.item;
+                                if (item && item.assetUrl && item.itemId) {
+                                    const key = item.assetUrl.split('?')[0];
                                     if (!marketDataCache[key]) {
                                         newItemsCount++;
                                     }
-                                    marketDataCache[key] = itemNode.marketData;
+                                    // Обновляем оба кэша
+                                    marketDataCache[key] = {
+                                        marketData: itemNode.marketData,
+                                        itemId: item.itemId // Добавляем itemId
+                                    };
+                                    itemDetailsCache[item.itemId] = item;
                                 }
                             });
                             
                             console.log('[R6 Market Helper Background] Cached', Object.keys(marketDataCache).length, 'items');
+                            console.log('[R6 Market Helper Background] Cached details for', Object.keys(itemDetailsCache).length, 'items');
                             analytics?.track('marketplace_data_received', { 
                                 totalCached: Object.keys(marketDataCache).length,
                                 newItems: newItemsCount,
@@ -305,12 +319,15 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                     console.log('[R6 Market Helper] Cached items count:', Object.keys(cachedData).length);
                                     
                                     // Функция обновления карточек
-                                    function updateCards() {
+                                    async function updateCards() {
                                         try {
                                             if (!document.body) {
                                                 setTimeout(updateCards, 100);
                                                 return;
                                             }
+
+                                            const { favorites = [] } = await chrome.storage.local.get('favorites');
+                                            const favoriteSet = new Set(favorites);
                                         
                                         const selectors = [
                                             '[data-e2e="secondary-store-grid-item"]',
@@ -329,7 +346,7 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                         let injectedCount = 0;
                                         
                                         allCards.forEach((card, index) => {
-                                            if (card.querySelector('.r6-market-helper-prices')) return;
+                                            if (card.querySelector('.r6-market-helper-container')) return; // Используем общий контейнер
                                             
                                             const imgElement = card.querySelector('img.item-image') || 
                                                               card.querySelector('img[class*="marketplace"]') ||
@@ -338,95 +355,117 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
                                             if (!imgElement) return;
                                             
                                             const cardImgUrl = imgElement.src.split('?')[0];
-                                            let itemMarketData = cachedData[cardImgUrl];
+                                            let itemData = cachedData[cardImgUrl];
                                             
-                                            if (!itemMarketData) {
+                                            if (!itemData) {
                                                 for (const [apiUrl, data] of Object.entries(cachedData)) {
                                                     if (cardImgUrl.includes(apiUrl) || apiUrl.includes(cardImgUrl)) {
-                                                        itemMarketData = data;
+                                                        itemData = data;
                                                         break;
                                                     }
                                                 }
                                             }
                                             
-                                            if (!itemMarketData) return;
-                                            
-                                            const lowestSellPrice = itemMarketData.sellStats?.[0]?.lowestPrice;
-                                            const highestBuyPrice = itemMarketData.buyStats?.[0]?.highestPrice;
-                                            
-                                            if (lowestSellPrice === undefined && highestBuyPrice === undefined) return;
-                                            
-                                            const priceContainer = document.createElement('div');
-                                            priceContainer.className = 'r6-market-helper-prices';
-                                            
-                                            // Определяем позицию на основе настроек
-                                            let positionStyle = '';
-                                            switch (userSettings.position) {
-                                                case 'top-left':
-                                                    positionStyle = 'top: 8px; left: 8px;';
-                                                    break;
-                                                case 'bottom-right':
-                                                    positionStyle = 'bottom: 8px; right: 8px;';
-                                                    break;
-                                                case 'bottom-left':
-                                                    positionStyle = 'bottom: 8px; left: 8px;';
-                                                    break;
-                                                default: // top-right
-                                                    positionStyle = 'top: 8px; right: 8px;';
-                                            }
-                                            
-                                            priceContainer.style.cssText = `
-                                                position: absolute;
-                                                ${positionStyle}
-                                                z-index: 1000;
-                                                background: rgba(0, 0, 0, 0.85);
-                                                padding: 6px 8px;
-                                                border-radius: 4px;
-                                                font-size: 11px;
-                                                font-family: "Ubisoft Sans", Arial, sans-serif;
-                                                color: white;
-                                                backdrop-filter: blur(4px);
-                                                border: 1px solid rgba(255, 255, 255, 0.2);
-                                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-                                            `;
-                                            
-                                            // Определяем формат текста на основе настроек
-                                            function formatPrice(type, price) {
-                                                switch (userSettings.format) {
-                                                    case 'short':
-                                                        return type === 'buy' ? `Buy: ${price}` : `Sell: ${price}`;
-                                                    case 'icons':
-                                                        return type === 'buy' ? `🔺 ${price}` : `🔻 ${price}`;
-                                                    default: // full
-                                                        return type === 'buy' ? `Buy now: ${price}` : `Sell now: ${price}`;
-                                                }
-                                            }
-                                            
-                                            if (lowestSellPrice !== undefined) {
-                                                const sellDiv = document.createElement('div');
-                                                sellDiv.style.cssText = 'color: #51cf66; margin-bottom: 2px; font-weight: 600; font-size: 10px;';
-                                                sellDiv.innerHTML = formatPrice('buy', lowestSellPrice);
-                                                priceContainer.appendChild(sellDiv);
-                                            }
-                                            
-                                            if (highestBuyPrice !== undefined) {
-                                                const buyDiv = document.createElement('div');
-                                                buyDiv.style.cssText = 'color: #ff6b6b; font-weight: 600; font-size: 10px;';
-                                                buyDiv.innerHTML = formatPrice('sell', highestBuyPrice);
-                                                priceContainer.appendChild(buyDiv);
-                                            }
-                                            
+                                            if (!itemData || !itemData.marketData) return;
+
                                             const cardStyle = window.getComputedStyle(card);
                                             if (cardStyle.position === 'static') {
                                                 card.style.position = 'relative';
                                             }
+
+                                            const helperContainer = document.createElement('div');
+                                            helperContainer.className = 'r6-market-helper-container';
+                                            helperContainer.style.cssText = `position: absolute; top: 8px; right: 8px; z-index: 1001; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;`;
+
+
+                                            // --- Кнопка Избранное ---
+                                            if (itemData.itemId) {
+                                                const favButton = document.createElement('div');
+                                                favButton.className = 'r6-market-helper-fav-btn';
+                                                const isFavorite = favoriteSet.has(itemData.itemId);
+
+                                                favButton.innerHTML = `
+                                                    <svg viewBox="0 0 24 24" style="width: 22px; height: 22px; cursor: pointer; stroke: #f39c12; stroke-width: 1.5;" fill="${isFavorite ? '#f39c12' : 'rgba(0,0,0,0.5)'}">
+                                                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                                                    </svg>
+                                                `;
+                                                favButton.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.7))';
+
+                                                favButton.addEventListener('click', async (e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const { favorites = [] } = await chrome.storage.local.get('favorites');
+                                                    const currentFavorites = new Set(favorites);
+                                                    const svg = favButton.querySelector('svg');
+
+                                                    if (currentFavorites.has(itemData.itemId)) {
+                                                        currentFavorites.delete(itemData.itemId);
+                                                        svg.style.fill = 'rgba(0,0,0,0.5)';
+                                                    } else {
+                                                        currentFavorites.add(itemData.itemId);
+                                                        svg.style.fill = '#f39c12';
+                                                    }
+                                                    await chrome.storage.local.set({ favorites: Array.from(currentFavorites) });
+                                                });
+                                                helperContainer.appendChild(favButton);
+                                            }
+
+
+                                            // --- Цены ---
+                                            const itemMarketData = itemData.marketData;
+                                            const lowestSellPrice = itemMarketData.sellStats?.[0]?.lowestPrice;
+                                            const highestBuyPrice = itemMarketData.buyStats?.[0]?.highestPrice;
                                             
-                                            card.appendChild(priceContainer);
+                                            if (lowestSellPrice !== undefined || highestBuyPrice !== undefined) {
+                                                const priceContainer = document.createElement('div');
+                                                priceContainer.className = 'r6-market-helper-prices';
+                                                
+                                                priceContainer.style.cssText = `
+                                                    background: rgba(0, 0, 0, 0.85);
+                                                    padding: 6px 8px;
+                                                    border-radius: 4px;
+                                                    font-size: 11px;
+                                                    font-family: "Ubisoft Sans", Arial, sans-serif;
+                                                    color: white;
+                                                    backdrop-filter: blur(4px);
+                                                    border: 1px solid rgba(255, 255, 255, 0.2);
+                                                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                                                    text-align: right;
+                                                `;
+                                                
+                                                function formatPrice(type, price) {
+                                                    switch (userSettings.format) {
+                                                        case 'short':
+                                                            return type === 'buy' ? `Buy: ${price}` : `Sell: ${price}`;
+                                                        case 'icons':
+                                                            return type === 'buy' ? `🔺 ${price}` : `🔻 ${price}`;
+                                                        default: // full
+                                                            return type === 'buy' ? `Buy now: ${price}` : `Sell now: ${price}`;
+                                                    }
+                                                }
+                                                
+                                                if (lowestSellPrice !== undefined) {
+                                                    const sellDiv = document.createElement('div');
+                                                    sellDiv.style.cssText = 'color: #51cf66; margin-bottom: 2px; font-weight: 600; font-size: 10px;';
+                                                    sellDiv.innerHTML = formatPrice('buy', lowestSellPrice);
+                                                    priceContainer.appendChild(sellDiv);
+                                                }
+                                                
+                                                if (highestBuyPrice !== undefined) {
+                                                    const buyDiv = document.createElement('div');
+                                                    buyDiv.style.cssText = 'color: #ff6b6b; font-weight: 600; font-size: 10px;';
+                                                    buyDiv.innerHTML = formatPrice('sell', highestBuyPrice);
+                                                    priceContainer.appendChild(buyDiv);
+                                                }
+                                                helperContainer.appendChild(priceContainer);
+                                            }
+                                            
+                                            card.appendChild(helperContainer);
                                             injectedCount++;
                                         });
                                         
                                             if (injectedCount > 0) {
-                                                console.log('[R6 Market Helper] Successfully injected prices for', injectedCount, 'cards');
+                                                console.log('[R6 Market Helper] Successfully injected helpers for', injectedCount, 'cards');
                                             } else {
                                                 console.log('[R6 Market Helper] No cards found or no matching market data');
                                             }
