@@ -9,6 +9,9 @@ The extension intercepts GraphQL requests from the Ubisoft marketplace and displ
 
 - **"Buy now"**: Lowest available sell price (you can buy at this price)
 - **"Sell now"**: Highest available buy order (you can sell at this price)
+- **"Star"**: Add item to favorites (you can find it in extension popup)
+
+![](img\image.png)
 
 ## Installation
 
