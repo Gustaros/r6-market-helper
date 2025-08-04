@@ -4,28 +4,17 @@
     <meta charset="utf-8">
     <style>
         body {
-            width: 320px;
+            width: 350px;
+            max-height: 500px; /* Limit height to allow scrolling */
             padding: 0;
             margin: 0;
             font-family: 'Segoe UI', 'Arial', sans-serif;
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             color: #e0e0e0;
-            overflow: hidden;
         }
         
         .container {
-            padding: 20px;
-            position: relative;
-        }
-        
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #f39c12, #e67e22, #d35400);
+            padding: 15px;
         }
         
         .header {
@@ -52,91 +41,116 @@
             font-weight: 500;
         }
         
-        .status {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            border: 1px solid #1e8449;
-            border-radius: 3px;
-            padding: 8px 12px;
-            text-align: center;
-            margin: 15px 0;
-            font-size: 12px;
-            font-weight: 600;
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(46, 204, 113, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        #favorites-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 350px; /* Adjusted height */
+            overflow-y: auto;
+            padding-right: 5px; /* Space for scrollbar */
         }
-        
-        .features {
-            margin: 18px 0;
+
+        .favorite-item-link {
+            text-decoration: none;
+            color: inherit; /* Inherit color for the link */
+            display: contents; /* Make the link behave like its contents */
         }
-        
-        .feature {
+
+        .favorite-item {
             display: flex;
             align-items: center;
-            margin: 8px 0;
-            padding: 6px 0;
-            border-left: 2px solid transparent;
-            padding-left: 8px;
+            background: linear-gradient(135deg, #232323 0%, #2a2a2a 100%);
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            padding: 10px;
             transition: all 0.2s ease;
+            border-left: 3px solid transparent;
         }
-        
-        .feature:hover {
+
+        .favorite-item:hover {
             border-left-color: #f39c12;
-            background: rgba(243, 156, 18, 0.05);
+            background: linear-gradient(135deg, #2c2c2c 0%, #333333 100%);
+            transform: translateX(2px);
         }
-        
-        .feature-icon {
+
+        .favorite-item-img-container {
+            width: 64px;
+            height: 64px;
+            border-radius: 3px;
             margin-right: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #1a1a1a;
+        }
+
+        .favorite-item img {
+            max-width: 90%;
+            max-height: 100%;
+            object-fit: contain; /* Fixes image aspect ratio */
+        }
+
+        .favorite-item-info {
+            flex-grow: 1;
+            /* Prevent name from touching the button */
+            padding-right: 10px;
+            overflow: hidden; /* Hide overflow */
+        }
+
+        .favorite-item-name {
             font-size: 14px;
-            width: 16px;
+            font-weight: 600;
+            color: #ecf0f1;
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden;
+            text-overflow: ellipsis; /* Add ... if name is too long */
+        }
+
+        .remove-favorite-btn {
+            background: none;
+            border: none;
+            color: #8a8a8a;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 5px;
+            transition: color 0.2s ease;
+            z-index: 2; /* Ensure button is clickable */
+            position: relative;
+        }
+
+        .remove-favorite-btn:hover {
+            color: #e74c3c;
+        }
+
+        .footer {
             text-align: center;
-            color: #f39c12;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #3a3a3a;
         }
-        
-        .feature-text {
-            font-size: 13px;
-            color: #b8b8b8;
-            font-weight: 400;
-        }
-        
+
         .settings-btn {
             background: linear-gradient(135deg, #34495e, #2c3e50);
             color: #ecf0f1;
             border: 1px solid #4a5f7a;
-            padding: 10px 16px;
+            padding: 8px 14px;
             border-radius: 3px;
             cursor: pointer;
             font-size: 12px;
             font-weight: 600;
-            margin: 15px 0 10px 0;
-            width: 100%;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            text-decoration: none;
+            display: inline-block;
         }
-        
         .settings-btn:hover {
             background: linear-gradient(135deg, #3d566e, #34495e);
             border-color: #5a6f8a;
             transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-        }
-        
-        .footer {
-            text-align: center;
-            margin-top: 15px;
-            padding-top: 12px;
-            border-top: 1px solid #3a3a3a;
-        }
-        
-        .version {
-            color: #666;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            color: #fff;
         }
     </style>
 </head>
@@ -144,18 +158,15 @@
     <div class="container">
         <div class="header">
             <div class="logo">R6 Market Helper</div>
-            <div class="subtitle">Rainbow Six Siege Marketplace</div>
+            <div class="subtitle">Favorite Items</div>
         </div>
         
-        <div class="status active">
-            Extension Active
+        <div id="favorites-list">
+            <p>Loading favorites...</p>
         </div>
-    
-        
-        <button class="settings-btn" id="settingsBtn">⚙ Settings</button>
         
         <div class="footer">
-            <div class="version">Ver 1.2.0</div>
+            <a href="#" id="settingsBtn" class="settings-btn">⚙ Settings</a>
         </div>
     </div>
     
