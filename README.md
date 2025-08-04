@@ -2,13 +2,6 @@
 
 A browser extension that displays current buy and sell prices directly on Rainbow Six Siege marketplace item cards, helping you make better trading decisions.
 
-## Features
-
-- 💰 **Real-time Price Display**: Shows current "Buy now" and "Sell now" prices on item cards
-- ⚡ **Instant Updates**: Prices update automatically as you browse the marketplace
-- 🎯 **Universal Coverage**: Works on all marketplace pages (Buy, Sell, Browse)
-- 🚀 **Lightweight**: Minimal impact on page performance
-- 🔒 **Privacy-focused**: No data collection or external API calls
 
 ## How It Works
 
@@ -29,12 +22,6 @@ The extension intercepts GraphQL requests from the Ubisoft marketplace and displ
 4. Click "Load unpacked" and select the extension folder
 5. Navigate to the R6 Siege marketplace to start using
 
-## Technical Details
-
-- **Manifest Version**: 3 (latest Chrome extension standard)
-- **Permissions**: Limited to Ubisoft domains only
-- **Architecture**: Service worker + content script injection
-- **Data Source**: Ubisoft's own GraphQL marketplace API
 
 ## Contributing
 
