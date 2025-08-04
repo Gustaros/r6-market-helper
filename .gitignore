@@ -4,12 +4,14 @@
 web-ext-artifacts/
 
 # IDE/Editor files
+.env
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 CLAUDE.md
+GEMINI.md
 
 # OS generated files
 .DS_Store
