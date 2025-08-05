@@ -3,7 +3,7 @@ const DEFAULT_SETTINGS = {
     enabled: true,
     position: 'top-right',
     format: 'full',
-    dataExport: true,
+    dataExport: false,
     exportFormat: 'csv'
 };
 
